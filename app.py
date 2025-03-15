@@ -31,6 +31,9 @@ def apply_laplacian(image):
 
 st.title("Image Processing App")
 
+if 'processed_images' not in st.session_state:
+    st.session_state.processed_images = {}
+
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
@@ -41,20 +44,29 @@ if uploaded_file is not None:
     with col1:
         rotation_angle = st.slider("Rotation Angle", 0, 360, 0)
         if st.button("Rotate Image"):
-            rotated_image = rotate_image(image, rotation_angle)
-            st.image(rotated_image, caption="Rotated Image", use_column_width=True)
+            st.session_state.processed_images['rotated'] = rotate_image(image, rotation_angle)
 
         shear_factor = st.slider("Shear Factor", 0.0, 1.0, 0.0)
         if st.button("Shear Image"):
-            sheared_image = shear_image(image, shear_factor)
-            st.image(sheared_image, caption="Sheared Image", use_column_width=True)
+            st.session_state.processed_images['sheared'] = shear_image(image, shear_factor)
 
     with col2:
         scale_factor = st.slider("Scale Factor", 0.1, 3.0, 1.0)
         if st.button("Scale Image"):
-            scaled_image = scale_image(image, scale_factor)
-            st.image(scaled_image, caption="Scaled Image", use_column_width=True)
+            st.session_state.processed_images['scaled'] = scale_image(image, scale_factor)
 
         if st.button("Apply Laplacian Mask"):
-            laplacian_image = apply_laplacian(image)
-            st.image(laplacian_image, caption="Laplacian Image", use_column_width=True)
+            st.session_state.processed_images['laplacian'] = apply_laplacian(image)
+
+    st.subheader("Processed Images")
+    col1, col2 = st.columns(2)
+    with col1:
+        if 'rotated' in st.session_state.processed_images:
+            st.image(st.session_state.processed_images['rotated'], caption="Rotated Image", use_column_width=True)
+        if 'sheared' in st.session_state.processed_images:
+            st.image(st.session_state.processed_images['sheared'], caption="Sheared Image", use_column_width=True)
+    with col2:
+        if 'scaled' in st.session_state.processed_images:
+            st.image(st.session_state.processed_images['scaled'], caption="Scaled Image", use_column_width=True)
+        if 'laplacian' in st.session_state.processed_images:
+            st.image(st.session_state.processed_images['laplacian'], caption="Laplacian Image", use_column_width=True)
