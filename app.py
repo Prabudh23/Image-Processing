@@ -68,7 +68,7 @@ if uploaded_file is not None:
         if st.button("Scale Image"):
             st.session_state.processed_images['scaled'] = scale_image(image, scale_factor)
 
-        laplacian_ksize = st.slider("Laplacian Kernel Size", 1, 7, 1, step=1)
+        laplacian_ksize = st.slider("Laplacian Kernel Size", 1, 7, 1, step=2)
         if st.button("Apply Laplacian Mask"):
             st.session_state.processed_images['laplacian'] = apply_laplacian(image, laplacian_ksize)
 
