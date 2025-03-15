@@ -40,6 +40,25 @@ def apply_laplacian(image, ksize):
     laplacian = np.uint8(np.clip(laplacian, 0, 255))
     return Image.fromarray(laplacian)
 
+def embed_message_dct(image, message):
+    img_array = np.array(image.convert('L'))
+    dct = cv2.dct(np.float32(img_array))
+    message_bits = ''.join(format(ord(char), '08b') for char in message)
+    for i, bit in enumerate(message_bits):
+        dct[0, i] = dct[0, i] + 1 if bit == '1' else dct[0, i] - 1
+    stego_image = cv2.idct(dct)
+    stego_image = np.clip(stego_image, 0, 255).astype(np.uint8)
+    return Image.fromarray(stego_image)
+
+def extract_message_dct(image, length):
+    img_array = np.array(image.convert('L'))
+    dct = cv2.dct(np.float32(img_array))
+    message_bits = ''
+    for i in range(length * 8):
+        message_bits += '1' if dct[0, i] > 0 else '0'
+    message = ''.join(chr(int(message_bits[i:i + 8], 2)) for i in range(0, len(message_bits), 8))
+    return message
+
 st.title("Image Processing App")
 
 if 'processed_images' not in st.session_state:
@@ -92,3 +111,14 @@ if uploaded_file is not None:
             st.image(st.session_state.processed_images['laplacian'], caption="Laplacian Image", use_container_width=True)
             st.subheader("Laplacian Image Histogram")
             plot_histogram(st.session_state.processed_images['laplacian'])
+
+    st.subheader("Image Steganography with DCT")
+    message = st.text_input("Enter message to embed:")
+    if st.button("Embed Message") and message:
+        stego_image = embed_message_dct(image, message)
+        st.session_state.processed_images['stego'] = stego_image
+        st.image(stego_image, caption="Stego Image", use_container_width=True)
+
+    if st.button("Extract Message"):
+        extracted_message = extract_message_dct(st.session_state.processed_images['stego'], len(message))
+        st.write(f"Extracted Message: {extracted_message}")
