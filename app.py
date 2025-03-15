@@ -23,9 +23,9 @@ def shear_image(image, shear_factor):
     sheared_image = cv2.warpAffine(img_array, M, (cols, rows))
     return Image.fromarray(sheared_image)
 
-def apply_laplacian(image):
+def apply_laplacian(image, ksize):
     img_array = np.array(image)
-    laplacian = cv2.Laplacian(img_array, cv2.CV_64F)
+    laplacian = cv2.Laplacian(img_array, cv2.CV_64F, ksize=ksize)
     laplacian = np.uint8(np.clip(laplacian, 0, 255))
     return Image.fromarray(laplacian)
 
@@ -55,8 +55,9 @@ if uploaded_file is not None:
         if st.button("Scale Image"):
             st.session_state.processed_images['scaled'] = scale_image(image, scale_factor)
 
+        laplacian_ksize = st.slider("Laplacian Kernel Size", 1, 7, 1, step=2)
         if st.button("Apply Laplacian Mask"):
-            st.session_state.processed_images['laplacian'] = apply_laplacian(image)
+            st.session_state.processed_images['laplacian'] = apply_laplacian(image, laplacian_ksize)
 
     st.subheader("Processed Images")
     col1, col2 = st.columns(2)
