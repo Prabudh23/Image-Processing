@@ -2,6 +2,17 @@ import streamlit as st
 from PIL import Image
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
+
+def plot_histogram(image):
+    img_array = np.array(image.convert('L'))  # Convert to grayscale
+    hist_values, bins = np.histogram(img_array.flatten(), bins=256, range=[0, 256])
+    fig, ax = plt.subplots()
+    ax.plot(hist_values, color='black')
+    ax.set_title("Histogram")
+    ax.set_xlabel("Pixel Value")
+    ax.set_ylabel("Frequency")
+    st.pyplot(fig)
 
 def rotate_image(image, angle):
     img_array = np.array(image)
@@ -39,6 +50,8 @@ uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption="Original Image", use_column_width=True)
+    st.subheader("Original Image Histogram")
+    plot_histogram(image)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -64,10 +77,18 @@ if uploaded_file is not None:
     with col1:
         if 'rotated' in st.session_state.processed_images:
             st.image(st.session_state.processed_images['rotated'], caption="Rotated Image", use_column_width=True)
+            st.subheader("Rotated Image Histogram")
+            plot_histogram(st.session_state.processed_images['rotated'])
         if 'sheared' in st.session_state.processed_images:
             st.image(st.session_state.processed_images['sheared'], caption="Sheared Image", use_column_width=True)
+            st.subheader("Sheared Image Histogram")
+            plot_histogram(st.session_state.processed_images['sheared'])
     with col2:
         if 'scaled' in st.session_state.processed_images:
             st.image(st.session_state.processed_images['scaled'], caption="Scaled Image", use_column_width=True)
+            st.subheader("Scaled Image Histogram")
+            plot_histogram(st.session_state.processed_images['scaled'])
         if 'laplacian' in st.session_state.processed_images:
             st.image(st.session_state.processed_images['laplacian'], caption="Laplacian Image", use_column_width=True)
+            st.subheader("Laplacian Image Histogram")
+            plot_histogram(st.session_state.processed_images['laplacian'])
