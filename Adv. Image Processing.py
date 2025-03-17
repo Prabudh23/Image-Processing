@@ -17,6 +17,7 @@ def plot_histogram(image):
 def process_image(image, operation, *args):
     try:
         img_array = np.array(image)
+        processed_image = img_array  # Fallback to the original image if processing fails
         if operation == 'rotate':
             center = (img_array.shape[1] // 2, img_array.shape[0] // 2)
             M = cv2.getRotationMatrix2D(center, args[0], 1.0)
