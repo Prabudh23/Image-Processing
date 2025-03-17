@@ -97,8 +97,8 @@ if uploaded_file:
             const x = Math.floor((e.clientX - rect.left) * ({image.width} / rect.width));
             const y = Math.floor((e.clientY - rect.top) * ({image.height} / rect.height));
             coordDisplay.textContent = `(${x}, ${y})`;
-            coordDisplay.style.left = `${e.clientX}px`;
-            coordDisplay.style.top = `${e.clientY}px`;
+            coordDisplay.style.left = `${e.clientX + 10}px`;
+            coordDisplay.style.top = `${e.clientY + 10}px`;
             coordDisplay.style.display = 'block';
         }});
         img.addEventListener('mouseleave', () => coordDisplay.style.display = 'none');
