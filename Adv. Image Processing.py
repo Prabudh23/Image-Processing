@@ -49,9 +49,9 @@ def process_image(image, operation, *args):
 def annotate_image(image, annotation_type, *args):
     draw = ImageDraw.Draw(image)
     if annotation_type == 'Rectangle':
-        draw.rectangle(args, outline='red', width=3)
+        draw.rectangle(*args, outline='red', width=3)
     elif annotation_type == 'Circle':
-        draw.ellipse(args, outline='blue', width=3)
+        draw.ellipse(*args, outline='blue', width=3)
     elif annotation_type == 'Text':
         draw.text(args[0], args[1], fill='green')
     return image
