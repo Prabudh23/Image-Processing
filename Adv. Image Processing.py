@@ -49,11 +49,9 @@ def process_image(image, operation, *args):
 def annotate_image(image, annotation_type, *args):
     draw = ImageDraw.Draw(image)
     if annotation_type == 'Rectangle':
-        draw.rectangle(args, outline='red', width=3)
-        draw.rectangle(*args, outline='red', width=3)
+        draw.rectangle([args[0], args[1], args[2], args[3]], outline='red', width=3)
     elif annotation_type == 'Circle':
-        draw.ellipse(args, outline='blue', width=3)
-        draw.ellipse(*args, outline='blue', width=3)
+        draw.ellipse([args[0], args[1], args[2], args[3]], outline='blue', width=3)
     elif annotation_type == 'Text':
         draw.text(args[0], args[1], fill='green')
     return image
@@ -99,7 +97,7 @@ if uploaded_file:
             x2 = st.number_input("X2", min_value=0, value=100)
             y2 = st.number_input("Y2", min_value=0, value=100)
             if st.button("Apply Annotation"):
-                st.session_state.processed_images["Annotated"] = annotate_image(image.copy(), annotation_type, (x1, y1, x2, y2))
+                st.session_state.processed_images["Annotated"] = annotate_image(image.copy(), annotation_type, x1, y1, x2, y2)
         elif annotation_type == "Text":
             text = st.text_input("Text")
             x = st.number_input("X", min_value=0, value=0)
