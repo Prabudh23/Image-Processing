@@ -3,7 +3,6 @@ from PIL import Image, ImageDraw
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import base64
 
 def plot_histogram(image):
     img_array = np.array(image.convert('L'))
@@ -14,12 +13,6 @@ def plot_histogram(image):
     ax.set_xlabel("Pixel Value")
     ax.set_ylabel("Frequency")
     st.pyplot(fig)
-
-def image_to_base64(image):
-    from io import BytesIO
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode()
 
 def process_image(image, operation, *args):
     img_array = np.array(image)
@@ -53,16 +46,6 @@ def process_image(image, operation, *args):
         processed_image = cv2.Canny(gray_image, args[0], args[1])
     return Image.fromarray(processed_image)
 
-def annotate_image(image, annotation_type, *args):
-    draw = ImageDraw.Draw(image)
-    if annotation_type == 'Rectangle':
-        draw.rectangle(*args, outline='red', width=3)
-    elif annotation_type == 'Circle':
-        draw.ellipse(*args, outline='blue', width=3)
-    elif annotation_type == 'Text':
-        draw.text(args[0], args[1], fill='green')
-    return image
-
 # Streamlit App
 st.title("Advanced Image Processing App")
 if 'processed_images' not in st.session_state:
@@ -77,35 +60,17 @@ if uploaded_file:
     plot_histogram(image)
 
     # Pixel Coordinate Tracker
-    st.write("### Hover over the image to see pixel coordinates")
-    encoded_image = image_to_base64(image)
-    st.markdown(
-        f"""
-        <style>
-        #img-container {{position: relative;}}
-        #coord-display {{position: absolute; background: rgba(0, 0, 0, 0.7); color: white; padding: 5px; border-radius: 5px; display: none;}}
-        </style>
-        <div id="img-container">
-            <img id="hover-img" src="data:image/png;base64,{encoded_image}" style="width: 100%;">
-            <div id="coord-display">(0, 0)</div>
-        </div>
-        <script>
-        const img = document.getElementById('hover-img');
-        const coordDisplay = document.getElementById('coord-display');
-        img.addEventListener('mousemove', (e) => {{
-            const rect = img.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left) * ({image.width} / rect.width));
-            const y = Math.floor((e.clientY - rect.top) * ({image.height} / rect.height));
-            coordDisplay.textContent = `(${x}, ${y})`;
-            coordDisplay.style.left = `${e.clientX + 10}px`;
-            coordDisplay.style.top = `${e.clientY + 10}px`;
-            coordDisplay.style.display = 'block';
-        }});
-        img.addEventListener('mouseleave', () => coordDisplay.style.display = 'none');
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
+    st.write("### Pixel Coordinate Tracker")
+    coords = st.text_input("Enter coordinates (x, y):", "0, 0")
+    try:
+        x, y = map(int, coords.split(","))
+        if 0 <= x < image.width and 0 <= y < image.height:
+            pixel_value = image.getpixel((x, y))
+            st.write(f"Pixel value at ({x}, {y}): {pixel_value}")
+        else:
+            st.write("Coordinates out of range")
+    except ValueError:
+        st.write("Invalid coordinates format. Use x, y")
 
     # Sidebar for transformations
     with st.sidebar:
