@@ -3,6 +3,7 @@ from PIL import Image, ImageDraw
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import base64
 
 def plot_histogram(image):
     img_array = np.array(image.convert('L'))
@@ -13,6 +14,12 @@ def plot_histogram(image):
     ax.set_xlabel("Pixel Value")
     ax.set_ylabel("Frequency")
     st.pyplot(fig)
+
+def image_to_base64(image):
+    from io import BytesIO
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
 
 def process_image(image, operation, *args):
     img_array = np.array(image)
@@ -71,31 +78,32 @@ if uploaded_file:
 
     # Pixel Coordinate Tracker
     st.write("### Hover over the image to see pixel coordinates")
+    encoded_image = image_to_base64(image)
     st.markdown(
-        """
+        f"""
         <style>
-        #img-container {position: relative;}
-        #coord-display {position: absolute; background: rgba(0, 0, 0, 0.7); color: white; padding: 5px; border-radius: 5px; display: none;}
+        #img-container {{position: relative;}}
+        #coord-display {{position: absolute; background: rgba(0, 0, 0, 0.7); color: white; padding: 5px; border-radius: 5px; display: none;}}
         </style>
         <div id="img-container">
-            <img id="hover-img" src="data:image/png;base64,{}" style="width: 100%;">
+            <img id="hover-img" src="data:image/png;base64,{encoded_image}" style="width: 100%;">
             <div id="coord-display">(0, 0)</div>
         </div>
         <script>
         const img = document.getElementById('hover-img');
         const coordDisplay = document.getElementById('coord-display');
-        img.addEventListener('mousemove', (e) => {
+        img.addEventListener('mousemove', (e) => {{
             const rect = img.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left) * ({} / rect.width));
-            const y = Math.floor((e.clientY - rect.top) * ({} / rect.height));
+            const x = Math.floor((e.clientX - rect.left) * ({image.width} / rect.width));
+            const y = Math.floor((e.clientY - rect.top) * ({image.height} / rect.height));
             coordDisplay.textContent = `(${x}, ${y})`;
             coordDisplay.style.left = `${e.clientX}px`;
             coordDisplay.style.top = `${e.clientY}px`;
             coordDisplay.style.display = 'block';
-        });
+        }});
         img.addEventListener('mouseleave', () => coordDisplay.style.display = 'none');
         </script>
-        """.format(image.convert('RGB').tobytes().hex(), image.width, image.height),
+        """,
         unsafe_allow_html=True
     )
 
