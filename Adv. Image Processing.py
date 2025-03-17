@@ -69,6 +69,36 @@ if uploaded_file:
     st.subheader("Original Image Histogram")
     plot_histogram(image)
 
+    # Pixel Coordinate Tracker
+    st.write("### Hover over the image to see pixel coordinates")
+    st.markdown(
+        """
+        <style>
+        #img-container {position: relative;}
+        #coord-display {position: absolute; background: rgba(0, 0, 0, 0.7); color: white; padding: 5px; border-radius: 5px; display: none;}
+        </style>
+        <div id="img-container">
+            <img id="hover-img" src="data:image/png;base64,{}" style="width: 100%;">
+            <div id="coord-display">(0, 0)</div>
+        </div>
+        <script>
+        const img = document.getElementById('hover-img');
+        const coordDisplay = document.getElementById('coord-display');
+        img.addEventListener('mousemove', (e) => {
+            const rect = img.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) * ({} / rect.width));
+            const y = Math.floor((e.clientY - rect.top) * ({} / rect.height));
+            coordDisplay.textContent = `(${x}, ${y})`;
+            coordDisplay.style.left = `${e.clientX}px`;
+            coordDisplay.style.top = `${e.clientY}px`;
+            coordDisplay.style.display = 'block';
+        });
+        img.addEventListener('mouseleave', () => coordDisplay.style.display = 'none');
+        </script>
+        """.format(image.convert('RGB').tobytes().hex(), image.width, image.height),
+        unsafe_allow_html=True
+    )
+
     # Sidebar for transformations
     with st.sidebar:
         st.header("Image Transformations")
@@ -88,31 +118,9 @@ if uploaded_file:
             if st.button(f"Apply {action}"):
                 st.session_state.processed_images[action] = process_image(image, *params)
 
-        # Annotation tools
-        st.header("Image Annotation")
-        annotation_type = st.selectbox("Annotation Type", ["Rectangle", "Circle", "Text"])
-        if annotation_type in ["Rectangle", "Circle"]:
-            x1 = st.number_input("X1", min_value=0, value=0)
-            y1 = st.number_input("Y1", min_value=0, value=0)
-            x2 = st.number_input("X2", min_value=0, value=100)
-            y2 = st.number_input("Y2", min_value=0, value=100)
-            if st.button("Apply Annotation"):
-                st.session_state.processed_images["Annotated"] = annotate_image(image.copy(), annotation_type, (x1, y1, x2, y2))
-        elif annotation_type == "Text":
-            text = st.text_input("Text")
-            x = st.number_input("X", min_value=0, value=0)
-            y = st.number_input("Y", min_value=0, value=0)
-            if st.button("Apply Annotation"):
-                st.session_state.processed_images["Annotated"] = annotate_image(image.copy(), "Text", (x, y), text)
-
     # Display processed images
     st.subheader("Processed Images")
     for name, img in st.session_state.processed_images.items():
         st.image(img, caption=f"{name} Image", use_container_width=True)
         st.subheader(f"{name} Image Histogram")
         plot_histogram(img)
-        # Download button
-        img_byte_arr = np.array(img.convert('RGB'))
-        is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_byte_arr, cv2.COLOR_RGB2BGR))
-        if is_success:
-            st.download_button(f"Download {name} Image", buffer.tobytes(), file_name=f"{name.lower()}_image.png", mime="image/png")
