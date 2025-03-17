@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -46,6 +46,16 @@ def process_image(image, operation, *args):
         processed_image = cv2.Canny(gray_image, args[0], args[1])
     return Image.fromarray(processed_image)
 
+def annotate_image(image, annotation_type, *args):
+    draw = ImageDraw.Draw(image)
+    if annotation_type == 'Rectangle':
+        draw.rectangle(args, outline='red', width=3)
+    elif annotation_type == 'Circle':
+        draw.ellipse(args, outline='blue', width=3)
+    elif annotation_type == 'Text':
+        draw.text(args[0], args[1], fill='green')
+    return image
+
 # Streamlit App
 st.title("Advanced Image Processing App")
 if 'processed_images' not in st.session_state:
@@ -78,9 +88,31 @@ if uploaded_file:
             if st.button(f"Apply {action}"):
                 st.session_state.processed_images[action] = process_image(image, *params)
 
+        # Annotation tools
+        st.header("Image Annotation")
+        annotation_type = st.selectbox("Annotation Type", ["Rectangle", "Circle", "Text"])
+        if annotation_type in ["Rectangle", "Circle"]:
+            x1 = st.number_input("X1", min_value=0, value=0)
+            y1 = st.number_input("Y1", min_value=0, value=0)
+            x2 = st.number_input("X2", min_value=0, value=100)
+            y2 = st.number_input("Y2", min_value=0, value=100)
+            if st.button("Apply Annotation"):
+                st.session_state.processed_images["Annotated"] = annotate_image(image.copy(), annotation_type, (x1, y1, x2, y2))
+        elif annotation_type == "Text":
+            text = st.text_input("Text")
+            x = st.number_input("X", min_value=0, value=0)
+            y = st.number_input("Y", min_value=0, value=0)
+            if st.button("Apply Annotation"):
+                st.session_state.processed_images["Annotated"] = annotate_image(image.copy(), "Text", (x, y), text)
+
     # Display processed images
     st.subheader("Processed Images")
     for name, img in st.session_state.processed_images.items():
         st.image(img, caption=f"{name} Image", use_container_width=True)
         st.subheader(f"{name} Image Histogram")
         plot_histogram(img)
+        # Download button
+        img_byte_arr = np.array(img.convert('RGB'))
+        is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_byte_arr, cv2.COLOR_RGB2BGR))
+        if is_success:
+            st.download_button(f"Download {name} Image", buffer.tobytes(), file_name=f"{name.lower()}_image.png", mime="image/png")
