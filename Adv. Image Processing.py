@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageDraw
+from PIL import Image
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -34,16 +34,26 @@ def process_image(image, operation, *args):
         processed_image = cv2.GaussianBlur(img_array, (args[0], args[0]), 0)
     elif operation == 'median':
         processed_image = cv2.medianBlur(img_array, args[0])
-    elif operation == 'bilateral':
-        processed_image = cv2.bilateralFilter(img_array, args[0], args[1], args[2])
+    elif operation == 'canny':
+        gray_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        processed_image = cv2.Canny(gray_image, args[0], args[1])
     elif operation == 'convert_color_space':
         if args[0] == 'HSV':
             processed_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV)
         elif args[0] == 'LAB':
             processed_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
-    elif operation == 'canny':
+    elif operation == 'feature_extraction':
         gray_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-        processed_image = cv2.Canny(gray_image, args[0], args[1])
+        if args[0] == 'SIFT':
+            sift = cv2.SIFT_create()
+            keypoints, descriptors = sift.detectAndCompute(gray_image, None)
+        elif args[0] == 'SURF':
+            surf = cv2.xfeatures2d.SURF_create()
+            keypoints, descriptors = surf.detectAndCompute(gray_image, None)
+        elif args[0] == 'ORB':
+            orb = cv2.ORB_create()
+            keypoints, descriptors = orb.detectAndCompute(gray_image, None)
+        processed_image = cv2.drawKeypoints(img_array, keypoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     return Image.fromarray(processed_image)
 
 # Streamlit App
@@ -59,19 +69,6 @@ if uploaded_file:
     st.subheader("Original Image Histogram")
     plot_histogram(image)
 
-    # Pixel Coordinate Tracker
-    st.write("### Pixel Coordinate Tracker")
-    coords = st.text_input("Enter coordinates (x, y):", "0, 0")
-    try:
-        x, y = map(int, coords.split(","))
-        if 0 <= x < image.width and 0 <= y < image.height:
-            pixel_value = image.getpixel((x, y))
-            st.write(f"Pixel value at ({x}, {y}): {pixel_value}")
-        else:
-            st.write("Coordinates out of range")
-    except ValueError:
-        st.write("Invalid coordinates format. Use x, y")
-
     # Sidebar for transformations
     with st.sidebar:
         st.header("Image Transformations")
@@ -83,7 +80,8 @@ if uploaded_file:
             "Gaussian": ("gaussian", st.slider("Gaussian Filter Size", 3, 15, 5, step=2)),
             "Median": ("median", st.slider("Median Filter Size", 3, 15, 5, step=2)),
             "Canny Edge Detection": ("canny", st.slider("Threshold 1", 0, 255, 100), st.slider("Threshold 2", 0, 255, 200)),
-            "Color Space Conversion": ("convert_color_space", st.selectbox("Select Color Space", ["RGB", "HSV", "LAB"]))
+            "Color Space Conversion": ("convert_color_space", st.selectbox("Select Color Space", ["RGB", "HSV", "LAB"])),
+            "Feature Extraction": ("feature_extraction", st.selectbox("Select Feature Extraction Technique", ["SIFT", "SURF", "ORB"]))
         }
 
         for action, params in actions.items():
