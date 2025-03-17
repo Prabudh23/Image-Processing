@@ -74,7 +74,8 @@ if uploaded_file:
         }
 
         for action, params in actions.items():
-            if st.button(action):
+            st.write(f"**{action}**")
+            if st.button(f"Apply {action}"):
                 st.session_state.processed_images[action] = process_image(image, *params)
 
     # Display processed images
