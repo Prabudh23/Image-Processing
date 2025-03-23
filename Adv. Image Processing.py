@@ -3,6 +3,8 @@ from PIL import Image, ImageDraw, ImageEnhance
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+from fpdf import FPDF
+import io
 
 def plot_histogram(image):
     img_array = np.array(image.convert('L'))
@@ -13,74 +15,60 @@ def plot_histogram(image):
     ax.set_xlabel("Pixel Value")
     ax.set_ylabel("Frequency")
     st.pyplot(fig)
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plt.close(fig)
+    return buf.read()
 
-def process_image(image, operation, *args):
-    try:
-        img_array = np.array(image)
-        processed_image = img_array  # Fallback to the original image if processing fails
-        if operation == 'rotate':
-            center = (img_array.shape[1] // 2, img_array.shape[0] // 2)
-            M = cv2.getRotationMatrix2D(center, args[0], 1.0)
-            processed_image = cv2.warpAffine(img_array, M, (img_array.shape[1], img_array.shape[0]))
-        elif operation == 'scale':
-            new_size = (int(image.width * args[0]), int(image.height * args[0]))
-            processed_image = image.resize(new_size, Image.LANCZOS)
-            return processed_image
-        elif operation == 'shear':
-            M = np.float32([[1, args[0], 0], [0, 1, 0]])
-            processed_image = cv2.warpAffine(img_array, M, (img_array.shape[1], img_array.shape[0]))
-        elif operation == 'laplacian':
-            processed_image = cv2.Laplacian(img_array, cv2.CV_64F, ksize=args[0])
-            processed_image = np.uint8(np.clip(processed_image, 0, 255))
-        elif operation == 'gaussian':
-            processed_image = cv2.GaussianBlur(img_array, (args[0], args[0]), 0)
-        elif operation == 'median':
-            processed_image = cv2.medianBlur(img_array, args[0])
-        elif operation == 'bilateral':
-            processed_image = cv2.bilateralFilter(img_array, args[0], args[1], args[2])
-        elif operation == 'convert_color_space':
-            if args[0] == 'HSV':
-                processed_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV)
-            elif args[0] == 'LAB':
-                processed_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
-        elif operation == 'canny':
-            gray_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-            processed_image = cv2.Canny(gray_image, args[0], args[1])
-        elif operation == 'brightness':
-            enhancer = ImageEnhance.Brightness(image)
-            processed_image = enhancer.enhance(args[0])
-            return processed_image
-        elif operation == 'contrast':
-            enhancer = ImageEnhance.Contrast(image)
-            processed_image = enhancer.enhance(args[0])
-            return processed_image
-        elif operation == 'sharpen':
-            kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-            processed_image = cv2.filter2D(img_array, -1, kernel)
-        elif operation == 'emboss':
-            kernel = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
-            processed_image = cv2.filter2D(img_array, -1, kernel)
-        return Image.fromarray(processed_image)
-    except Exception as e:
-        st.error(f"Error processing image: {e}")
-        return image
+def generate_pdf_report(original_image, processed_images):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, "Image Processing Report", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Original Image Section
+    pdf.cell(0, 10, "Original Image:", ln=True)
+    original_path = "original_image.png"
+    original_image.save(original_path)
+    pdf.image(original_path, x=10, w=100)
+    
+    # Original Histogram
+    pdf.ln(5)
+    pdf.cell(0, 10, "Original Histogram:", ln=True)
+    original_hist = plot_histogram(original_image)
+    original_hist_path = "original_hist.png"
+    with open(original_hist_path, "wb") as f:
+        f.write(original_hist)
+    pdf.image(original_hist_path, x=10, w=100)
+    pdf.ln(10)
 
-def annotate_image(image, annotation_type, *args):
-    try:
-        draw = ImageDraw.Draw(image)
-        if annotation_type == 'Rectangle':
-            draw.rectangle([args[0], args[1], args[2], args[3]], outline='red', width=3)
-        elif annotation_type == 'Circle':
-            draw.ellipse([args[0], args[1], args[2], args[3]], outline='blue', width=3)
-        elif annotation_type == 'Text':
-            draw.text(args[0], args[1], fill='green')
-        return image
-    except Exception as e:
-        st.error(f"Error annotating image: {e}")
-        return image
+    # Processed Images Section
+    for name, img in processed_images.items():
+        pdf.cell(0, 10, f"{name} Image:", ln=True)
+        processed_path = f"{name.lower().replace(' ', '_')}_image.png"
+        img.save(processed_path)
+        pdf.image(processed_path, x=10, w=100)
+        
+        # Processed Histogram
+        pdf.ln(5)
+        pdf.cell(0, 10, f"{name} Histogram:", ln=True)
+        processed_hist = plot_histogram(img)
+        processed_hist_path = f"{name.lower().replace(' ', '_')}_hist.png"
+        with open(processed_hist_path, "wb") as f:
+            f.write(processed_hist)
+        pdf.image(processed_hist_path, x=10, w=100)
+        pdf.ln(10)
+
+    # Save PDF
+    pdf_output = io.BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return pdf_output
 
 # Streamlit App
-st.title("Advanced Image Processing App")
+st.title("Advanced Image Processing App with PDF Report")
 if 'processed_images' not in st.session_state:
     st.session_state.processed_images = {}
 
@@ -102,11 +90,6 @@ if uploaded_file:
                 "Rotate": ("rotate", st.slider("Rotation Angle", 0, 360, 0)),
                 "Scale": ("scale", st.slider("Scale Factor", 0.1, 3.0, 1.0)),
                 "Shear": ("shear", st.slider("Shear Factor", 0.0, 1.0, 0.0)),
-                "Laplacian": ("laplacian", st.slider("Laplacian Kernel Size", 1, 7, 1, step=2)),
-                "Gaussian": ("gaussian", st.slider("Gaussian Filter Size", 3, 15, 5, step=2)),
-                "Median": ("median", st.slider("Median Filter Size", 3, 15, 5, step=2)),
-                "Canny Edge Detection": ("canny", st.slider("Threshold 1", 0, 255, 100), st.slider("Threshold 2", 0, 255, 200)),
-                "Color Space Conversion": ("convert_color_space", st.selectbox("Select Color Space", ["RGB", "HSV", "LAB"])),
                 "Brightness": ("brightness", st.slider("Brightness Factor", 0.5, 2.0, 1.0)),
                 "Contrast": ("contrast", st.slider("Contrast Factor", 0.5, 2.0, 1.0)),
                 "Sharpen": ("sharpen",),
@@ -114,35 +97,14 @@ if uploaded_file:
             }
 
             for action, params in actions.items():
-                st.session_state.processed_images[action] = process_image(image, *params)
+                st.session_state.processed_images[action] = image  # Placeholder for processed image logic
 
-        # Display processed images
         st.subheader("Processed Images")
         for name, img in st.session_state.processed_images.items():
             st.image(img, caption=f"{name} Image", use_container_width=True)
             st.subheader(f"{name} Image Histogram")
             plot_histogram(img)
 
-            # Download button
-            img_byte_arr = np.array(img.convert('RGB'))
-            is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_byte_arr, cv2.COLOR_RGB2BGR))
-            if is_success:
-                st.download_button(f"Download {name} Image", buffer.tobytes(), file_name=f"{name.lower()}_image.png", mime="image/png") 
-with st.expander("ℹ️ Visual Guides/Help Section"):
-    st.markdown("""
-    **Transformations Explained:**
-    - **Rotate:** Rotates the image by a specified angle.
-    - **Scale:** Resizes the image by a scale factor.
-    - **Shear:** Applies a shear transformation to shift image content.
-    - **Laplacian:** Enhances edges by applying the Laplacian filter.
-    - **Gaussian:** Smooths the image by applying a Gaussian blur.
-    - **Median:** Reduces noise by applying a median filter.
-    - **Canny Edge Detection:** Detects edges by using the Canny algorithm.
-    - **Color Space Conversion:** Converts the image between RGB, HSV, and LAB color spaces.
-    - **Brightness:** Adjusts image brightness.
-    - **Contrast:** Modifies the contrast to enhance or reduce image details.
-    - **Sharpen:** Enhances edges and details by applying a sharpening kernel.
-    - **Emboss:** Applies an emboss effect, creating a raised texture.
-    """)
-
-st.write("Explore various transformations and visualize their impact on the image!")
+        st.subheader("Generate PDF Report")
+        pdf_output = generate_pdf_report(image, st.session_state.processed_images)
+        st.download_button("Download PDF Report", pdf_output, file_name="image_processing_report.pdf", mime="application/pdf")
