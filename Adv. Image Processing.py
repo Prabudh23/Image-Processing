@@ -127,7 +127,8 @@ if uploaded_file:
             img_byte_arr = np.array(img.convert('RGB'))
             is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_byte_arr, cv2.COLOR_RGB2BGR))
             if is_success:
-                st.download_button(f"Download {name} Image", buffer.tobytes(), file_name=f"{name.lower()}_image.png", mime="image/png") 
+                if st.download_button(f"Download {name} Image", buffer.tobytes(), file_name=f"{name.lower()}_image.png", mime="image/png"):
+                    st.balloons() 
 with st.expander("ℹ️ Visual Guides/Help Section"):
     st.markdown("""
     **Transformations Explained:**
