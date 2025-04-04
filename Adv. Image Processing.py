@@ -24,7 +24,8 @@ def process_image(image, operation, *args):
 
         if operation == 'scale':
             scale_factor = args[0]
-            processed_image = cv2.resize(img_array, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_LINEAR)
+            new_size = (int(img_array.shape[1] * scale_factor), int(img_array.shape[0] * scale_factor))
+            processed_image = cv2.resize(img_array, new_size, interpolation=cv2.INTER_LINEAR)
 
         elif operation == 'shear':
             shear_factor = args[0]
