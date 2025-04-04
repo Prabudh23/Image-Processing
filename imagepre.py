@@ -5,7 +5,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Image Transformation Tool", layout="centered")
 
-st.title("🖼️ Image Transformation Filters")
+st.title("Image Transformation Filters")
 st.markdown("Apply **rotation**, **shear**, **scaling**, and **Laplacian filtering** on your uploaded image.")
 
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
@@ -17,7 +17,7 @@ if uploaded_file:
     center = (w // 2, h // 2)
 
     # Display original image
-    st.image(image, caption="🖼️ Original Image", use_column_width=True)
+    st.image(image, caption="Original Image", use_column_width=True)
 
     # Sidebar controls
     st.sidebar.header("🔧 Transformation Settings")
@@ -62,20 +62,20 @@ if uploaded_file:
         laplacian_img = cv2.cvtColor(lap, cv2.COLOR_GRAY2RGB)
 
     # Show transformed images
-    st.subheader("🔄 Rotated Image")
+    st.subheader("Rotated Image")
     st.image(rotated_img, use_column_width=True)
 
-    st.subheader("↔️ Sheared Image")
+    st.subheader("Sheared Image")
     st.image(sheared_img, use_column_width=True)
 
-    st.subheader("🔍 Scaled Image")
+    st.subheader("Scaled Image")
     st.image(scaled_img, use_column_width=True)
 
     if apply_laplacian:
-        st.subheader(f"🧠 Laplacian Filtered Image (Kernel: {laplacian_size}x{laplacian_size})")
+        st.subheader(f" Laplacian Filtered Image (Kernel: {laplacian_size}x{laplacian_size})")
         st.image(laplacian_img, use_column_width=True)
 
-    st.success("✅ All transformations applied successfully!")
+    st.success("All transformations applied successfully!")
 
 else:
     st.info("Please upload an image to begin.")
