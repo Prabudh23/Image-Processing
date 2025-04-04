@@ -20,12 +20,12 @@ def plot_histogram(image):
 def process_image(image, operation, *args):
     try:
         img_array = np.array(image)
-        processed_image = img_array  # Default to the original image
 
         if operation == 'scale':
             scale_factor = args[0]
             new_size = (int(img_array.shape[1] * scale_factor), int(img_array.shape[0] * scale_factor))
             processed_image = cv2.resize(img_array, new_size, interpolation=cv2.INTER_LINEAR)
+            return Image.fromarray(processed_image)  # Convert back to PIL
 
         elif operation == 'shear':
             shear_factor = args[0]
@@ -70,7 +70,7 @@ def process_image(image, operation, *args):
             enhancer = ImageEnhance.Contrast(image)
             return enhancer.enhance(factor)
 
-        return Image.fromarray(processed_image)
+        return Image.fromarray(processed_image)  # Convert NumPy array back to PIL Image
 
     except Exception as e:
         st.error(f"Error processing image: {e}")
@@ -119,6 +119,7 @@ if uploaded_file:
                 st.subheader(f"{name} Image Histogram")
                 plot_histogram(img)
 
+            # Download button
             img_byte_arr = np.array(img.convert('RGB'))
             is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_byte_arr, cv2.COLOR_RGB2BGR))
             if is_success:
