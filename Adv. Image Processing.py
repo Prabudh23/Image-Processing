@@ -119,7 +119,6 @@ if uploaded_file:
                 st.subheader(f"{name} Image Histogram")
                 plot_histogram(img)
 
-            # Download button
             img_byte_arr = np.array(img.convert('RGB'))
             is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_byte_arr, cv2.COLOR_RGB2BGR))
             if is_success:
