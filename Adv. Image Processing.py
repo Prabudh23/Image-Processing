@@ -16,6 +16,8 @@ st.markdown("""
     .stDownloadButton>button {background-color: #4CAF50; color: white;}
     .stFileUploader>div>div>div>div {border: 2px dashed #4CAF50;}
     .sidebar .sidebar-content {background-color: #e8f5e9;}
+    .image-container {margin-bottom: 20px;}
+    .image-title {font-weight: bold; text-align: center;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -48,7 +50,9 @@ def shear_image(img, shear_factor, axis):
     return sheared_img
 
 def apply_operation(img, operation):
-    if operation == "Grayscale":
+    if operation == "Original":
+        return img
+    elif operation == "Grayscale":
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     elif operation == "Blur":
         return cv2.GaussianBlur(img, (15, 15), 0)
@@ -88,80 +92,92 @@ def apply_operation(img, operation):
         return cv2.xphoto.oilPainting(img, 7, 1)
     return img
 
+def display_image_with_title(img, title):
+    col1, col2, col3 = st.columns([1,6,1])
+    with col2:
+        st.markdown(f'<p class="image-title">{title}</p>', unsafe_allow_html=True)
+        st.image(img, use_column_width=True)
+
 def main():
     st.title("🖼️ Image Processing App")
-    st.markdown("Upload an image and apply various processing operations")
+    st.markdown("Upload an image to see different filter effects")
     
     # Sidebar for upload and operations
     with st.sidebar:
-        st.header("Upload & Operations")
+        st.header("Settings")
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
         
         if uploaded_file is not None:
-            st.success("Image uploaded successfully!")
-            st.balloons()
-            
             st.subheader("Shearing Options")
             shear_axis = st.radio("Shear Axis", ['x', 'y'])
             shear_factor = st.slider("Shear Factor", -1.0, 1.0, 0.2, 0.1)
-            
-            st.subheader("Image Operations")
-            operations = [
-                "Original",
-                "Grayscale",
-                "Blur",
-                "Edge Detection",
-                "Threshold",
-                "Contrast Stretch",
-                "Negative",
-                "Sepia",
-                "Sketch",
-                "Emboss",
-                "Oil Painting"
-            ]
-            selected_operation = st.selectbox("Choose an operation:", operations)
     
     # Main content area
-    col1, col2 = st.columns(2)
-    
     if uploaded_file is not None:
         # Read and convert image
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
         img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         
-        with col1:
-            st.subheader("Original Image")
-            st.image(img, use_column_width=True)
-            
-            st.subheader("Histogram")
-            fig = plot_histogram(img)
-            st.pyplot(fig)
+        # Display original image and histogram
+        display_image_with_title(img, "Original Image")
         
-        # Process image
-        processed_img = apply_operation(img, selected_operation)
-        if selected_operation != "Original":
+        st.subheader("Histogram")
+        fig = plot_histogram(img)
+        st.pyplot(fig)
+        
+        st.divider()
+        st.subheader("Filter Effects")
+        
+        # Define all operations
+        operations = [
+            "Original",
+            "Grayscale",
+            "Blur",
+            "Edge Detection",
+            "Threshold",
+            "Contrast Stretch",
+            "Negative",
+            "Sepia",
+            "Sketch",
+            "Emboss",
+            "Oil Painting"
+        ]
+        
+        # Display all filtered images in a grid
+        cols = st.columns(3)
+        for i, operation in enumerate(operations[1:]):  # Skip "Original"
+            processed_img = apply_operation(img, operation)
             processed_img = shear_image(processed_img, shear_factor, shear_axis)
-        
-        with col2:
-            st.subheader("Processed Image")
-            st.image(processed_img, use_column_width=True)
             
-            # Download button
-            if st.button("🎈 Download Processed Image"):
-                processed_pil = Image.fromarray(processed_img)
-                buf = io.BytesIO()
-                processed_pil.save(buf, format="PNG")
-                byte_im = buf.getvalue()
-                
-                st.download_button(
-                    label="⬇️ Download Image",
-                    data=byte_im,
-                    file_name="processed_image.png",
-                    mime="image/png"
-                )
-                st.balloons()
-                st.success("Image ready for download!")
+            with cols[i % 3]:
+                st.markdown(f'<p class="image-title">{operation}</p>', unsafe_allow_html=True)
+                st.image(processed_img, use_column_width=True)
+        
+        # Download section
+        st.divider()
+        st.subheader("Download Processed Image")
+        
+        selected_operation = st.selectbox("Choose an operation to download:", operations)
+        processed_img = apply_operation(img, selected_operation)
+        processed_img = shear_image(processed_img, shear_factor, shear_axis)
+        
+        display_image_with_title(processed_img, f"Selected for Download: {selected_operation}")
+        
+        # Download button
+        processed_pil = Image.fromarray(processed_img)
+        buf = io.BytesIO()
+        processed_pil.save(buf, format="PNG")
+        byte_im = buf.getvalue()
+        
+        if st.download_button(
+            label="⬇️ Download Image",
+            data=byte_im,
+            file_name=f"processed_{selected_operation.lower().replace(' ', '_')}.png",
+            mime="image/png"
+        ):
+            st.balloons()
+            st.success("Download started!")
     
     else:
         st.info("Please upload an image to get started")
