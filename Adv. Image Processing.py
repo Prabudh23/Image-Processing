@@ -1,117 +1,170 @@
 import streamlit as st
-from PIL import Image, ImageEnhance
-import numpy as np
 import cv2
+import numpy as np
+from PIL import Image
+import io
 import matplotlib.pyplot as plt
 
-def plot_histogram(image):
-    img_array = np.array(image.convert('L'))
-    hist_values, _ = np.histogram(img_array.flatten(), bins=256, range=[0, 256])
-    fig, ax = plt.subplots()
-    ax.plot(hist_values, color='black')
-    ax.set_title("Histogram")
-    ax.set_xlabel("Pixel Value")
-    ax.set_ylabel("Frequency")
-    st.pyplot(fig)
+# Set page config
+st.set_page_config(page_title="Image Processor", page_icon="🖼️", layout="wide")
 
-def process_image(image, operation, *args):
-    try:
-        img_array = np.array(image)
-        processed_image = None  # Initialize variable
+# Custom CSS for better appearance
+st.markdown("""
+    <style>
+    .main {background-color: #f9f9f9;}
+    .stButton>button {border-radius: 5px; padding: 8px 20px;}
+    .stDownloadButton>button {background-color: #4CAF50; color: white;}
+    .stFileUploader>div>div>div>div {border: 2px dashed #4CAF50;}
+    .sidebar .sidebar-content {background-color: #e8f5e9;}
+    </style>
+    """, unsafe_allow_html=True)
 
-        if operation == 'scale':
-            scale_factor = args[0]
-            width = int(img_array.shape[1] * scale_factor)
-            height = int(img_array.shape[0] * scale_factor)
-            dim = (width, height)
-            
-            if scale_factor < 1.0:
-                interpolation = cv2.INTER_AREA
-            else:
-                interpolation = cv2.INTER_CUBIC
-                
-            processed_image = cv2.resize(img_array, dim, interpolation=interpolation)
-            return Image.fromarray(processed_image)
+def plot_histogram(img):
+    if len(img.shape) == 2:  # Grayscale
+        plt.figure(figsize=(8, 4))
+        plt.hist(img.ravel(), 256, [0, 256], color='gray')
+        plt.title('Grayscale Histogram')
+        plt.xlabel('Pixel Value')
+        plt.ylabel('Frequency')
+    else:  # Color
+        plt.figure(figsize=(8, 4))
+        colors = ('b', 'g', 'r')
+        for i, color in enumerate(colors):
+            hist = cv2.calcHist([img], [i], None, [256], [0, 256])
+            plt.plot(hist, color=color)
+        plt.title('Color Histogram')
+        plt.xlabel('Pixel Value')
+        plt.ylabel('Frequency')
+    return plt
 
-        elif operation == 'shear':
-            shear_factor = args[0]
-            M = np.float32([[1, shear_factor, 0], [0, 1, 0]])
-            processed_image = cv2.warpAffine(img_array, M, (img_array.shape[1], img_array.shape[0]))
-
-        elif operation == 'laplacian':
-            ksize = args[0]
-            gray_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-            processed_image = cv2.Laplacian(gray_image, cv2.CV_64F, ksize=ksize)
-            processed_image = np.uint8(np.clip(processed_image, 0, 255))
-            processed_image = cv2.cvtColor(processed_image, cv2.COLOR_GRAY2RGB)
-
-        elif operation == 'gaussian':
-            ksize = args[0]
-            processed_image = cv2.GaussianBlur(img_array, (ksize, ksize), 0)
-
-        elif operation == 'median':
-            ksize = args[0]
-            processed_image = cv2.medianBlur(img_array, ksize)
-
-        elif operation == 'canny':
-            thresh1, thresh2 = args[0], args[1]
-            gray_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-            processed_image = cv2.Canny(gray_image, thresh1, thresh2)
-            processed_image = cv2.cvtColor(processed_image, cv2.COLOR_GRAY2RGB)
-
-        elif operation == 'convert_color_space':
-            color_space = args[0]
-            if color_space == 'HSV':
-                processed_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV)
-            elif color_space == 'LAB':
-                processed_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
-
-        elif operation == 'brightness':
-            factor = args[0]
-            enhancer = ImageEnhance.Brightness(image)
-            return enhancer.enhance(factor)
-
-        elif operation == 'contrast':
-            factor = args[0]
-            enhancer = ImageEnhance.Contrast(image)
-            return enhancer.enhance(factor)
-
-        # Ensure we have a processed image before conversion
-        if processed_image is not None:
-            return Image.fromarray(processed_image)
-        else:
-            return image
-
-    except Exception as e:
-        st.error(f"Error processing image: {e}")
-        return image
-
-# Streamlit UI
-st.title("Image Processing App")
-
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
-
-if uploaded_file:
-    image = Image.open(uploaded_file)
-    if min(image.size) < 50:
-        st.error("Image is too small for processing.")
+def shear_image(img, shear_factor, axis):
+    if axis == 'x':
+        shear_matrix = np.float32([[1, shear_factor, 0], [0, 1, 0]])
     else:
-        col1, col2 = st.columns(2)
+        shear_matrix = np.float32([[1, 0, 0], [shear_factor, 1, 0]])
+    
+    rows, cols = img.shape[:2]
+    sheared_img = cv2.warpAffine(img, shear_matrix, (int(cols + abs(shear_factor)*rows), rows))
+    return sheared_img
+
+def apply_operation(img, operation):
+    if operation == "Grayscale":
+        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    elif operation == "Blur":
+        return cv2.GaussianBlur(img, (15, 15), 0)
+    elif operation == "Edge Detection":
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return cv2.Canny(gray, 100, 200)
+    elif operation == "Threshold":
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        return thresh
+    elif operation == "Contrast Stretch":
+        lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl, a, b))
+        return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    elif operation == "Negative":
+        return 255 - img
+    elif operation == "Sepia":
+        kernel = np.array([[0.272, 0.534, 0.131],
+                          [0.349, 0.686, 0.168],
+                          [0.393, 0.769, 0.189]])
+        return cv2.filter2D(img, -1, kernel)
+    elif operation == "Sketch":
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        inv_gray = 255 - gray
+        blurred = cv2.GaussianBlur(inv_gray, (21, 21), 0)
+        inv_blurred = 255 - blurred
+        return cv2.divide(gray, inv_blurred, scale=256.0)
+    elif operation == "Emboss":
+        kernel = np.array([[0, -1, -1],
+                          [1,  0, -1],
+                          [1,  1,  0]])
+        return cv2.filter2D(img, -1, kernel)
+    elif operation == "Oil Painting":
+        return cv2.xphoto.oilPainting(img, 7, 1)
+    return img
+
+def main():
+    st.title("🖼️ Image Processing App")
+    st.markdown("Upload an image and apply various processing operations")
+    
+    # Sidebar for upload and operations
+    with st.sidebar:
+        st.header("Upload & Operations")
+        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+        
+        if uploaded_file is not None:
+            st.success("Image uploaded successfully!")
+            st.balloons()
+            
+            st.subheader("Shearing Options")
+            shear_axis = st.radio("Shear Axis", ['x', 'y'])
+            shear_factor = st.slider("Shear Factor", -1.0, 1.0, 0.2, 0.1)
+            
+            st.subheader("Image Operations")
+            operations = [
+                "Original",
+                "Grayscale",
+                "Blur",
+                "Edge Detection",
+                "Threshold",
+                "Contrast Stretch",
+                "Negative",
+                "Sepia",
+                "Sketch",
+                "Emboss",
+                "Oil Painting"
+            ]
+            selected_operation = st.selectbox("Choose an operation:", operations)
+    
+    # Main content area
+    col1, col2 = st.columns(2)
+    
+    if uploaded_file is not None:
+        # Read and convert image
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
         with col1:
-            st.image(image, caption="Original Image", use_column_width=True)
-            plot_histogram(image)
-
-        with st.sidebar:
-            st.header("Transformations")
-            scale_factor = st.slider("Scale Factor", 0.1, 3.0, 1.0, 0.1)
-            # Other transformation parameters...
-
-        # Process and display scaled image
-        scaled_img = process_image(image, 'scale', scale_factor)
+            st.subheader("Original Image")
+            st.image(img, use_column_width=True)
+            
+            st.subheader("Histogram")
+            fig = plot_histogram(img)
+            st.pyplot(fig)
+        
+        # Process image
+        processed_img = apply_operation(img, selected_operation)
+        if selected_operation != "Original":
+            processed_img = shear_image(processed_img, shear_factor, shear_axis)
         
         with col2:
-            if scaled_img.size != image.size:  # Only show if actually scaled
-                st.image(scaled_img, caption=f"Scaled (Factor: {scale_factor})", use_column_width=True)
-                plot_histogram(scaled_img)
-            else:
-                st.warning("Scale factor is 1.0 - no scaling applied")
+            st.subheader("Processed Image")
+            st.image(processed_img, use_column_width=True)
+            
+            # Download button
+            if st.button("🎈 Download Processed Image"):
+                processed_pil = Image.fromarray(processed_img)
+                buf = io.BytesIO()
+                processed_pil.save(buf, format="PNG")
+                byte_im = buf.getvalue()
+                
+                st.download_button(
+                    label="⬇️ Download Image",
+                    data=byte_im,
+                    file_name="processed_image.png",
+                    mime="image/png"
+                )
+                st.balloons()
+                st.success("Image ready for download!")
+    
+    else:
+        st.info("Please upload an image to get started")
+
+if __name__ == "__main__":
+    main()
