@@ -51,9 +51,9 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file)  
     st.image(image, caption="Original Image", use_container_width=True)  
     st.subheader("Original Image Histogram")  
-    plot_histogram(image)  # Keep the histogram for the original image  
+    plot_histogram(image)  # ✅ Histogram ONLY for original image  
 
-    # Create columns for controls  
+    # UI controls  
     col1, col2 = st.columns(2)  
     with col1:  
         rotation_angle = st.slider("Rotation Angle", 0, 360, 0)  
@@ -73,19 +73,16 @@ if uploaded_file is not None:
         if st.button("Apply Laplacian Mask"):  
             st.session_state.processed_images['laplacian'] = apply_laplacian(image, laplacian_ksize)  
 
+    # Show processed images (no histograms here)  
     st.subheader("Processed Images")  
     col1, col2 = st.columns(2)  
     with col1:  
         if 'rotated' in st.session_state.processed_images:  
             st.image(st.session_state.processed_images['rotated'], caption="Rotated Image", use_container_width=True)  
-            # No histogram for the rotated image  
         if 'sheared' in st.session_state.processed_images:  
             st.image(st.session_state.processed_images['sheared'], caption="Sheared Image", use_container_width=True)  
-            # No histogram for the sheared image  
     with col2:  
         if 'scaled' in st.session_state.processed_images:  
             st.image(st.session_state.processed_images['scaled'], caption="Scaled Image", use_container_width=True)  
-            # No histogram for the scaled image  
         if 'laplacian' in st.session_state.processed_images:  
-            st.image(st.session_state.processed_images['laplacian'], caption="Laplacian Image", use_container_width=True)  
-            # No histogram for the laplacian image  
+            st.image(st.session_state.processed_images['laplacian'], caption="Laplacian Image", use_container_width=True)
