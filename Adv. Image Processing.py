@@ -23,9 +23,19 @@ def process_image(image, operation, *args):
 
         if operation == 'scale':
             scale_factor = args[0]
-            new_size = (int(img_array.shape[1] * scale_factor), int(img_array.shape[0] * scale_factor))
-            processed_image = cv2.resize(img_array, new_size, interpolation=cv2.INTER_LINEAR)
-            return Image.fromarray(processed_image)  # Convert back to PIL
+            # Calculate new dimensions while maintaining aspect ratio
+            width = int(img_array.shape[1] * scale_factor)
+            height = int(img_array.shape[0] * scale_factor)
+            dim = (width, height)
+            
+            # Use INTER_AREA for shrinking and INTER_CUBIC for enlarging
+            if scale_factor < 1.0:
+                interpolation = cv2.INTER_AREA
+            else:
+                interpolation = cv2.INTER_CUBIC
+                
+            processed_image = cv2.resize(img_array, dim, interpolation=interpolation)
+            return Image.fromarray(processed_image)
 
         elif operation == 'shear':
             shear_factor = args[0]
@@ -37,7 +47,7 @@ def process_image(image, operation, *args):
             gray_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
             processed_image = cv2.Laplacian(gray_image, cv2.CV_64F, ksize=ksize)
             processed_image = np.uint8(np.clip(processed_image, 0, 255))
-            processed_image = cv2.cvtColor(processed_image, cv2.COLOR_GRAY2RGB)  # Convert back to RGB
+            processed_image = cv2.cvtColor(processed_image, cv2.COLOR_GRAY2RGB)
 
         elif operation == 'gaussian':
             ksize = args[0]
@@ -70,7 +80,7 @@ def process_image(image, operation, *args):
             enhancer = ImageEnhance.Contrast(image)
             return enhancer.enhance(factor)
 
-        return Image.fromarray(processed_image)  # Convert NumPy array back to PIL Image
+        return Image.fromarray(processed_image)
 
     except Exception as e:
         st.error(f"Error processing image: {e}")
@@ -89,53 +99,69 @@ if uploaded_file:
     if min(image.size) < 50:
         st.error("Image is too small for processing. Please upload a larger image.")
     else:
-        st.image(image, caption="Original Image", use_container_width=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.image(image, caption="Original Image", use_column_width=True)
+            plot_histogram(image)
 
         # Sidebar for transformations
         with st.sidebar:
             st.header("Image Transformations")
-            actions = {
-                "Scale": ("scale", st.slider("Scale Factor", 0.1, 3.0, 1.0)),
-                "Shear": ("shear", st.slider("Shear Factor", 0.0, 1.0, 0.0)),
-                "Laplacian": ("laplacian", st.slider("Laplacian Kernel Size", 1, 7, 1, step=2)),
-                "Gaussian": ("gaussian", st.slider("Gaussian Filter Size", 3, 15, 5, step=2)),
-                "Median": ("median", st.slider("Median Filter Size", 3, 15, 5, step=2)),
-                "Canny Edge Detection": ("canny", st.slider("Threshold 1", 0, 255, 100), st.slider("Threshold 2", 0, 255, 200)),
-                "Color Space Conversion": ("convert_color_space", st.selectbox("Select Color Space", ["RGB", "HSV", "LAB"])),
-                "Brightness": ("brightness", st.slider("Brightness Factor", 0.5, 2.0, 1.0)),
-                "Contrast": ("contrast", st.slider("Contrast Factor", 0.5, 2.0, 1.0))
-            }
+            scale_factor = st.slider("Scale Factor", 0.1, 3.0, 1.0, 0.1)
+            shear_factor = st.slider("Shear Factor", 0.0, 1.0, 0.0, 0.1)
+            laplacian_ksize = st.slider("Laplacian Kernel Size", 1, 7, 1, step=2)
+            gaussian_ksize = st.slider("Gaussian Filter Size", 3, 15, 5, step=2)
+            median_ksize = st.slider("Median Filter Size", 3, 15, 5, step=2)
+            thresh1 = st.slider("Canny Threshold 1", 0, 255, 100)
+            thresh2 = st.slider("Canny Threshold 2", 0, 255, 200)
+            color_space = st.selectbox("Select Color Space", ["RGB", "HSV", "LAB"])
+            brightness = st.slider("Brightness Factor", 0.5, 2.0, 1.0, 0.1)
+            contrast = st.slider("Contrast Factor", 0.5, 2.0, 1.0, 0.1)
 
-            for action, params in actions.items():
-                st.session_state.processed_images[action] = process_image(image, *params)
+        # Process images
+        scaled_img = process_image(image, 'scale', scale_factor)
+        sheared_img = process_image(image, 'shear', shear_factor)
+        laplacian_img = process_image(image, 'laplacian', laplacian_ksize)
+        gaussian_img = process_image(image, 'gaussian', gaussian_ksize)
+        median_img = process_image(image, 'median', median_ksize)
+        canny_img = process_image(image, 'canny', thresh1, thresh2)
+        color_img = process_image(image, 'convert_color_space', color_space)
+        bright_img = process_image(image, 'brightness', brightness)
+        contrast_img = process_image(image, 'contrast', contrast)
 
-        # Display processed images and histograms for relevant transformations
-        st.subheader("Processed Images")
-        for name, img in st.session_state.processed_images.items():
-            st.image(img, caption=f"{name} Image", use_container_width=True)
+        # Display scaled image separately for better visibility
+        with col2:
+            st.image(scaled_img, caption=f"Scaled Image (Factor: {scale_factor})", use_column_width=True)
+            plot_histogram(scaled_img)
 
-            # Only show histogram for transformations that modify intensity values
-            if name in ["Laplacian", "Gaussian", "Median", "Canny Edge Detection", "Color Space Conversion"]:
-                st.subheader(f"{name} Image Histogram")
-                plot_histogram(img)
-
-            # Download button
-            img_byte_arr = np.array(img.convert('RGB'))
-            is_success, buffer = cv2.imencode(".png", cv2.cvtColor(img_byte_arr, cv2.COLOR_RGB2BGR))
-            if is_success:
-                if st.download_button(f"Download {name} Image", buffer.tobytes(), file_name=f"{name.lower()}_image.png", mime="image/png"):
-                    st.balloons()
+        # Display other transformations in expanders
+        with st.expander("Other Transformations"):
+            cols = st.columns(2)
+            transformations = [
+                ("Shear", sheared_img),
+                ("Laplacian", laplacian_img),
+                ("Gaussian Blur", gaussian_img),
+                ("Median Blur", median_img),
+                ("Canny Edge", canny_img),
+                (f"{color_space} Color Space", color_img),
+                ("Brightness Adjusted", bright_img),
+                ("Contrast Adjusted", contrast_img)
+            ]
+            
+            for i, (name, img) in enumerate(transformations):
+                with cols[i % 2]:
+                    st.image(img, caption=name, use_column_width=True)
+                    if name not in ["Shear", "Brightness Adjusted", "Contrast Adjusted"]:
+                        plot_histogram(img)
 
 with st.expander("ℹ️ Transformations Explained"):
     st.markdown("""
-    - **Scale:** Resizes the image.
-    - **Shear:** Applies a transformation that shifts pixels.
-    - **Laplacian:** Highlights edges using second-order derivatives.
-    - **Gaussian:** Blurs the image to reduce noise.
-    - **Median:** Uses median filtering for noise reduction.
-    - **Canny Edge Detection:** Detects edges with adjustable thresholds.
-    - **Color Space Conversion:** Converts between RGB, HSV, and LAB.
-    - **Brightness & Contrast:** Adjusts intensity levels.
+    - **Scale:** Resizes the image (INTER_AREA for shrinking, INTER_CUBIC for enlarging)
+    - **Shear:** Applies a transformation that shifts pixels
+    - **Laplacian:** Highlights edges using second-order derivatives
+    - **Gaussian:** Blurs the image to reduce noise
+    - **Median:** Uses median filtering for noise reduction
+    - **Canny Edge Detection:** Detects edges with adjustable thresholds
+    - **Color Space Conversion:** Converts between RGB, HSV, and LAB
+    - **Brightness & Contrast:** Adjusts intensity levels
     """)
-
-st.write("Experiment with different filters and transformations!")
