@@ -50,47 +50,56 @@ def shear_image(img, shear_factor, axis):
     return sheared_img
 
 def apply_operation(img, operation):
-    if operation == "Original":
+    try:
+        if operation == "Original":
+            return img
+        elif operation == "Grayscale":
+            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        elif operation == "Blur":
+            return cv2.GaussianBlur(img, (15, 15), 0)
+        elif operation == "Edge Detection":
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            return cv2.Canny(gray, 100, 200)
+        elif operation == "Threshold":
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+            return thresh
+        elif operation == "Contrast Stretch":
+            lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl, a, b))
+            return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        elif operation == "Negative":
+            return 255 - img
+        elif operation == "Sepia":
+            kernel = np.array([[0.272, 0.534, 0.131],
+                            [0.349, 0.686, 0.168],
+                            [0.393, 0.769, 0.189]])
+            return cv2.filter2D(img, -1, kernel)
+        elif operation == "Sketch":
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            inv_gray = 255 - gray
+            blurred = cv2.GaussianBlur(inv_gray, (21, 21), 0)
+            inv_blurred = 255 - blurred
+            return cv2.divide(gray, inv_blurred, scale=256.0)
+        elif operation == "Emboss":
+            kernel = np.array([[0, -1, -1],
+                            [1,  0, -1],
+                            [1,  1,  0]])
+            return cv2.filter2D(img, -1, kernel)
+        elif operation == "Oil Painting":
+            # Try to use xphoto module if available
+            try:
+                return cv2.xphoto.oilPainting(img, 7, 1)
+            except:
+                st.warning("Oil Painting effect not available in your OpenCV installation")
+                return img
         return img
-    elif operation == "Grayscale":
-        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    elif operation == "Blur":
-        return cv2.GaussianBlur(img, (15, 15), 0)
-    elif operation == "Edge Detection":
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        return cv2.Canny(gray, 100, 200)
-    elif operation == "Threshold":
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-        return thresh
-    elif operation == "Contrast Stretch":
-        lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        cl = clahe.apply(l)
-        limg = cv2.merge((cl, a, b))
-        return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-    elif operation == "Negative":
-        return 255 - img
-    elif operation == "Sepia":
-        kernel = np.array([[0.272, 0.534, 0.131],
-                          [0.349, 0.686, 0.168],
-                          [0.393, 0.769, 0.189]])
-        return cv2.filter2D(img, -1, kernel)
-    elif operation == "Sketch":
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        inv_gray = 255 - gray
-        blurred = cv2.GaussianBlur(inv_gray, (21, 21), 0)
-        inv_blurred = 255 - blurred
-        return cv2.divide(gray, inv_blurred, scale=256.0)
-    elif operation == "Emboss":
-        kernel = np.array([[0, -1, -1],
-                          [1,  0, -1],
-                          [1,  1,  0]])
-        return cv2.filter2D(img, -1, kernel)
-    elif operation == "Oil Painting":
-        return cv2.xphoto.oilPainting(img, 7, 1)
-    return img
+    except Exception as e:
+        st.error(f"Error applying {operation}: {str(e)}")
+        return img
 
 def display_image_with_title(img, title):
     col1, col2, col3 = st.columns([1,6,1])
@@ -129,7 +138,7 @@ def main():
         st.divider()
         st.subheader("Filter Effects")
         
-        # Define all operations
+        # Define all operations (removed Oil Painting if causing issues)
         operations = [
             "Original",
             "Grayscale",
@@ -140,8 +149,7 @@ def main():
             "Negative",
             "Sepia",
             "Sketch",
-            "Emboss",
-            "Oil Painting"
+            "Emboss"
         ]
         
         # Display all filtered images in a grid
