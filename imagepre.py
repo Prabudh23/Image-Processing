@@ -16,7 +16,7 @@ if uploaded_file:
     h, w = img_np.shape[:2]  
     center = (w // 2, h // 2)  
 
-    st.image(image, caption="Original Image", use_column_width=True)  
+    st.image(image, caption="Original Image", use_container_width=True)  
 
     st.sidebar.header("🔧 Transformation Settings")  
     rotation_angle = st.sidebar.slider("Rotate (degrees)", -180, 180, 0)  
@@ -27,18 +27,15 @@ if uploaded_file:
     apply_laplacian = st.sidebar.checkbox("Apply Laplacian Filter", value=False)  
     laplacian_size = st.sidebar.selectbox("Laplacian Kernel Size", [3, 5]) if apply_laplacian else None  
 
-    # --- Rotation  
     rotation_matrix = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)  
     rotated_img = cv2.warpAffine(img_np, rotation_matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)  
 
-    # --- Shearing  
     shear_matrix = np.array([  
         [1, shear_x, 0],  
         [shear_y, 1, 0]  
     ], dtype=np.float32)  
     sheared_img = cv2.warpAffine(img_np, shear_matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)  
 
-    # --- Scaling  
     scaled_raw = cv2.resize(img_np, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_LINEAR)  
     sh, sw = scaled_raw.shape[:2]  
     scaled_img = np.zeros_like(img_np)  
@@ -50,12 +47,10 @@ if uploaded_file:
     x2 = x_offset + min(sw, w)  
     scaled_img[y1:y2, x1:x2] = scaled_raw[0:(y2 - y1), 0:(x2 - x1)]  
 
-    # --- Grayscale  
     if convert_greyscale:  
         grey_img = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)  
         grey_img = cv2.cvtColor(grey_img, cv2.COLOR_GRAY2RGB)  
 
-    # --- Laplacian  
     if apply_laplacian:  
         gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)  
         lap = cv2.Laplacian(gray, cv2.CV_64F, ksize=laplacian_size)  
@@ -66,25 +61,24 @@ if uploaded_file:
         _, buf = cv2.imencode(f".{fmt.lower()}", image)  
         return buf.tobytes()  
 
-    # Flag to trigger balloons  
     downloaded = False  
 
     st.subheader("Rotated Image")  
-    st.image(rotated_img, use_column_width=True)  
+    st.image(rotated_img, use_container_width=True)  
     col1, _ = st.columns([1, 1])  
     with col1:  
         if st.download_button("Download Rotated Image", convert_to_bytes(rotated_img), "rotated_image.png", "image/png"):  
             downloaded = True  
 
     st.subheader("Sheared Image")  
-    st.image(sheared_img, use_column_width=True)  
+    st.image(sheared_img, use_container_width=True)  
     col2, _ = st.columns([1, 1])  
     with col2:  
         if st.download_button("Download Sheared Image", convert_to_bytes(sheared_img), "sheared_image.png", "image/png"):  
             downloaded = True  
 
     st.subheader("Scaled Image")  
-    st.image(scaled_img, use_column_width=True)  
+    st.image(scaled_img, use_container_width=True)  
     col3, _ = st.columns([1, 1])  
     with col3:  
         if st.download_button("Download Scaled Image", convert_to_bytes(scaled_img), "scaled_image.png", "image/png"):  
@@ -92,7 +86,7 @@ if uploaded_file:
 
     if convert_greyscale:  
         st.subheader("Grayscale Image")  
-        st.image(grey_img, use_column_width=True)  
+        st.image(grey_img, use_container_width=True)  
         col4, _ = st.columns([1, 1])  
         with col4:  
             if st.download_button("Download Grayscale Image", convert_to_bytes(grey_img), "grayscale_image.png", "image/png"):  
@@ -100,7 +94,7 @@ if uploaded_file:
 
     if apply_laplacian:  
         st.subheader(f"Laplacian Filtered Image (Kernel: {laplacian_size}x{laplacian_size})")  
-        st.image(laplacian_img, use_column_width=True)  
+        st.image(laplacian_img, use_container_width=True)  
         col5, _ = st.columns([1, 1])  
         with col5:  
             if st.download_button("Download Laplacian Image", convert_to_bytes(laplacian_img), "laplacian_image.png", "image/png"):  
