@@ -6,7 +6,7 @@ from PIL import Image
 st.set_page_config(page_title="Image Transformation Tool", layout="centered")  
 
 st.title("Image Transformation Filters")  
-st.markdown("Apply **rotation**, **shear**, **scaling**, **grayscale**, and **Laplacian filtering** on your uploaded image.")  
+st.markdown("Apply **rotation**, **shear**, **scaling**, **grayscale**, **Laplacian filtering**, and **add noise** to your uploaded image.")  
 
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])  
 
@@ -26,6 +26,7 @@ if uploaded_file:
     convert_greyscale = st.sidebar.checkbox("Convert to Greyscale", value=False)  
     apply_laplacian = st.sidebar.checkbox("Apply Laplacian Filter", value=False)  
     laplacian_size = st.sidebar.selectbox("Laplacian Kernel Size", [3, 5]) if apply_laplacian else None  
+    noise_type = st.sidebar.selectbox("Add Noise", ["None", "Gaussian", "Rayleigh"])  
 
     rotation_matrix = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)  
     rotated_img = cv2.warpAffine(img_np, rotation_matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)  
@@ -47,15 +48,34 @@ if uploaded_file:
     x2 = x_offset + min(sw, w)  
     scaled_img[y1:y2, x1:x2] = scaled_raw[0:(y2 - y1), 0:(x2 - x1)]  
 
+    final_img = img_np.copy()  
+
     if convert_greyscale:  
-        grey_img = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)  
+        grey_img = cv2.cvtColor(final_img, cv2.COLOR_RGB2GRAY)  
         grey_img = cv2.cvtColor(grey_img, cv2.COLOR_GRAY2RGB)  
+        final_img = grey_img  
 
     if apply_laplacian:  
-        gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)  
+        gray = cv2.cvtColor(final_img, cv2.COLOR_RGB2GRAY)  
         lap = cv2.Laplacian(gray, cv2.CV_64F, ksize=laplacian_size)  
         lap = cv2.convertScaleAbs(lap)  
         laplacian_img = cv2.cvtColor(lap, cv2.COLOR_GRAY2RGB)  
+        final_img = laplacian_img  
+
+    if noise_type == "Gaussian":  
+        mean = 0  
+        std = 25  
+        gauss = np.random.normal(mean, std, final_img.shape).astype(np.float32)  
+        noisy = final_img.astype(np.float32) + gauss  
+        noisy = np.clip(noisy, 0, 255).astype(np.uint8)  
+        final_img = noisy  
+
+    elif noise_type == "Rayleigh":  
+        scale = 50  
+        rayleigh_noise = np.random.rayleigh(scale, final_img.shape).astype(np.float32)  
+        noisy = final_img.astype(np.float32) + rayleigh_noise  
+        noisy = np.clip(noisy, 0, 255).astype(np.uint8)  
+        final_img = noisy  
 
     def convert_to_bytes(image: np.ndarray, fmt: str = "PNG") -> bytes:  
         _, buf = cv2.imencode(f".{fmt.lower()}", image)  
@@ -84,21 +104,12 @@ if uploaded_file:
         if st.download_button("Download Scaled Image", convert_to_bytes(scaled_img), "scaled_image.png", "image/png"):  
             downloaded = True  
 
-    if convert_greyscale:  
-        st.subheader("Grayscale Image")  
-        st.image(grey_img, use_container_width=True)  
-        col4, _ = st.columns([1, 1])  
-        with col4:  
-            if st.download_button("Download Grayscale Image", convert_to_bytes(grey_img), "grayscale_image.png", "image/png"):  
-                downloaded = True  
-
-    if apply_laplacian:  
-        st.subheader(f"Laplacian Filtered Image (Kernel: {laplacian_size}x{laplacian_size})")  
-        st.image(laplacian_img, use_container_width=True)  
-        col5, _ = st.columns([1, 1])  
-        with col5:  
-            if st.download_button("Download Laplacian Image", convert_to_bytes(laplacian_img), "laplacian_image.png", "image/png"):  
-                downloaded = True  
+    st.subheader("Final Transformed Image")  
+    st.image(final_img, use_container_width=True)  
+    col4, _ = st.columns([1, 1])  
+    with col4:  
+        if st.download_button("Download Final Image", convert_to_bytes(final_img), "final_image.png", "image/png"):  
+            downloaded = True  
 
     if downloaded:  
         st.balloons()  
