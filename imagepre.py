@@ -6,7 +6,7 @@ from PIL import Image
 st.set_page_config(page_title="Image Transformation Tool", layout="centered")  
 
 st.title("Image Transformation Filters")  
-st.markdown("Apply **rotation**, **shear**, **scaling**, **grayscale**, **Laplacian filtering**, and **add noise** to your uploaded image.")  
+st.markdown("Apply **rotation**, **shear**, **scaling**, **grayscale**, **Laplacian filtering**, **add noise**, **inversion**, and **brightness adjustment** to your uploaded image.")  
 
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])  
 
@@ -27,6 +27,8 @@ if uploaded_file:
     apply_laplacian = st.sidebar.checkbox("Apply Laplacian Filter", value=False)  
     laplacian_size = st.sidebar.selectbox("Laplacian Kernel Size", [3, 5]) if apply_laplacian else None  
     noise_type = st.sidebar.selectbox("Add Noise", ["None", "Gaussian", "Rayleigh"])  
+    invert_colors = st.sidebar.checkbox("Invert Colors", value=False)  
+    brightness_adjustment = st.sidebar.slider("Brightness Adjustment", -100, 100, 0)  
 
     rotation_matrix = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)  
     rotated_img = cv2.warpAffine(img_np, rotation_matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)  
@@ -62,20 +64,26 @@ if uploaded_file:
         laplacian_img = cv2.cvtColor(lap, cv2.COLOR_GRAY2RGB)  
         final_img = laplacian_img  
 
-    if noise_type == "Gaussian":  
-        mean = 0  
-        std = 25  
-        gauss = np.random.normal(mean, std, final_img.shape).astype(np.float32)  
-        noisy = final_img.astype(np.float32) + gauss  
-        noisy = np.clip(noisy, 0, 255).astype(np.uint8)  
-        final_img = noisy  
+    if noise_type != "None":  
+        if noise_type == "Gaussian":  
+            mean = 0  
+            std = st.sidebar.slider("Gaussian Noise Std Dev", 0, 100, 50)  
+            gauss = np.random.normal(mean, std, final_img.shape).astype(np.float32)  
+            noisy = final_img.astype(np.float32) + gauss  
+            noisy = np.clip(noisy, 0, 255).astype(np.uint8)  
+            final_img = noisy  
+        elif noise_type == "Rayleigh":  
+            scale = st.sidebar.slider("Rayleigh Noise Scale", 0, 100, 50)  
+            rayleigh_noise = np.random.rayleigh(scale, final_img.shape).astype(np.float32)  
+            noisy = final_img.astype(np.float32) + rayleigh_noise  
+            noisy = np.clip(noisy, 0, 255).astype(np.uint8)  
+            final_img = noisy  
 
-    elif noise_type == "Rayleigh":  
-        scale = 50  
-        rayleigh_noise = np.random.rayleigh(scale, final_img.shape).astype(np.float32)  
-        noisy = final_img.astype(np.float32) + rayleigh_noise  
-        noisy = np.clip(noisy, 0, 255).astype(np.uint8)  
-        final_img = noisy  
+    if invert_colors:  
+        final_img = cv2.bitwise_not(final_img)  
+
+    if brightness_adjustment != 0:  
+        final_img = cv2.convertScaleAbs(final_img, alpha=1, beta=brightness_adjustment)  
 
     def convert_to_bytes(image: np.ndarray, fmt: str = "PNG") -> bytes:  
         _, buf = cv2.imencode(f".{fmt.lower()}", image)  
@@ -116,4 +124,4 @@ if uploaded_file:
         st.success("Image downloaded successfully!")  
 
 else:  
-    st.info("Please upload an image to begin.")
+    st.info("Please upload an image to begin.")  
